@@ -2,6 +2,17 @@ import { createGlobalStyle } from 'styled-components';
 import { typography, spacing } from './tokens';
 
 const GlobalStyles = createGlobalStyle`
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  * {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
   *, *::before, *::after {
     box-sizing: border-box;
   }

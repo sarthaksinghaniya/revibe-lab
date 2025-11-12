@@ -52,11 +52,11 @@ const StepsList = styled.div`
   margin-bottom: ${spacing.lg};
 `;
 
-const StepItem = styled.div<{ isActive: boolean }>`
+const StepItemStyled = styled.div<{ $isActive: boolean }>`
   padding: ${spacing.md};
   margin-bottom: ${spacing.sm};
-  background: ${({ isActive, theme }) => isActive ? theme.primaryPurple : theme.gray100};
-  color: ${({ isActive, theme }) => isActive ? theme.white : theme.gray700};
+  background: ${({ $isActive, theme }) => $isActive ? theme.primaryPurple : theme.gray100};
+  color: ${({ $isActive, theme }) => $isActive ? theme.white : theme.gray700};
   border-radius: ${radius.md};
   cursor: pointer;
   transition: all 0.2s ease;
@@ -65,7 +65,7 @@ const StepItem = styled.div<{ isActive: boolean }>`
   gap: ${spacing.md};
 
   &:hover {
-    background: ${({ isActive, theme }) => isActive ? theme.primaryPurple : theme.gray200};
+    background: ${({ $isActive, theme }) => $isActive ? theme.primaryPurple : theme.gray200};
   }
 
   strong {
@@ -74,12 +74,18 @@ const StepItem = styled.div<{ isActive: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    background: ${({ isActive, theme }) => isActive ? 'rgba(255,255,255,0.3)' : theme.primaryPurple};
-    color: ${({ isActive, theme }) => isActive ? theme.white : theme.white};
+    background: ${({ $isActive, theme }) => $isActive ? 'rgba(255,255,255,0.3)' : theme.primaryPurple};
+    color: ${({ $isActive, theme }) => $isActive ? theme.white : theme.white};
     border-radius: 50%;
     font-size: 0.75rem;
   }
 `;
+
+const StepItem: React.FC<{ isActive: boolean; onClick: () => void; children: React.ReactNode }> = ({ isActive, onClick, children }) => (
+  <StepItemStyled $isActive={isActive} onClick={onClick}>
+    {children}
+  </StepItemStyled>
+);
 
 const StepDetail = styled.div`
   margin-bottom: ${spacing.lg};

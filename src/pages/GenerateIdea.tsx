@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { spacing, radius } from '@/theme/tokens';
 import { useNavigate } from 'react-router-dom';
+import { generateIdeaWithAI, generateLearningResourcesWithAI } from '@/services/aiService';
+import { projectsDB, resourcesDB, initializeDatabase } from '@/services/databaseService';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -221,10 +223,159 @@ const ActionButton = styled.button`
     opacity: 0.9;
     transform: translateY(-2px);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const LoadingSpinner = styled.div`
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(99, 102, 241, 0.3);
+  border-radius: 50%;
+  border-top-color: ${({ theme }) => theme.primaryPurple};
+  animation: spin 1s ease-in-out infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const ErrorMessage = styled.div`
+  background: #FEE2E2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  padding: ${spacing.md};
+  border-radius: ${radius.md};
+  margin-bottom: ${spacing.lg};
+  font-size: 0.875rem;
+`;
+
+const SuccessMessage = styled.div`
+  background: #DCFCE7;
+  border: 1px solid #BBF7D0;
+  color: #16A34A;
+  padding: ${spacing.md};
+  border-radius: ${radius.md};
+  margin-bottom: ${spacing.lg};
+  font-size: 0.875rem;
+`;
+
+const ResourceLink = styled.a`
+  display: inline-block;
+  color: ${({ theme }) => theme.primaryPurple};
+  font-weight: 600;
+  margin-top: ${spacing.sm};
+  
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const GenerateIdea: React.FC = () => {
   const navigate = useNavigate();
+  const [material, setMaterial] = useState('plastic bottle');
+  const [category, setCategory] = useState('Education');
+  const [complexity, setComplexity] = useState('Low');
+  const [budget, setBudget] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [generatedIdea, setGeneratedIdea] = useState<any>(null);
+  const [relatedResources, setRelatedResources] = useState<any[]>([]);
+
+  const CATEGORIES = [
+    'Education',
+    'Art',
+    'Home',
+    'Fashion',
+    'Tech',
+    'Robotics',
+    'Gaming',
+    'Sports',
+    'Garden',
+    'Kitchen',
+    'Furniture',
+    'Jewelry',
+    'Toys',
+    'Music',
+    'Storage',
+  ];
+
+  const handleGenerate = async () => {
+    if (!material.trim()) {
+      setError('Please enter a material');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setGeneratedIdea(null);
+    setRelatedResources([]);
+
+    try {
+      // Initialize database
+      initializeDatabase();
+
+      // Generate idea using AI
+      const idea = await generateIdeaWithAI({
+        material,
+        category,
+        complexity,
+        budget,
+      });
+
+      // Generate related resources using AI
+      const resources = await generateLearningResourcesWithAI(
+        `${category} projects with ${material}`
+      );
+
+      // Save project to database
+      const projectId = `proj_${Date.now()}`;
+      projectsDB.save({
+        id: projectId,
+        idea: idea.idea,
+        material,
+        category,
+        complexity,
+        budget,
+        description: idea.description,
+        estimatedTime: idea.estimatedTime,
+        materials: idea.materials,
+        steps: idea.steps,
+        learningOutcomes: idea.learningOutcomes,
+        createdAt: new Date().toISOString(),
+        completionStatus: 0,
+      });
+
+      // Save resources to database
+      resources.forEach((res: any, index: number) => {
+        resourcesDB.save({
+          id: `res_${projectId}_${index}`,
+          title: res.title,
+          description: res.description,
+          type: res.type,
+          url: res.url,
+          topic: `${category} - ${idea.idea}`,
+          difficulty: complexity,
+          createdAt: new Date().toISOString(),
+        });
+      });
+
+      setGeneratedIdea({ ...idea, projectId });
+      setRelatedResources(resources);
+      setSuccess('✅ Idea generated successfully! Resources added to Learn page.');
+    } catch (err) {
+      console.error('Error generating idea:', err);
+      setError('Failed to generate idea. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Container>
@@ -233,9 +384,12 @@ const GenerateIdea: React.FC = () => {
           <Badge>✨ Create Your Idea</Badge>
           <CardTitle>Smart Material Detection</CardTitle>
           <CardDescription>
-            Upload or drop a photo to automatically detect materials
+            Enter material details to generate personalized upcycling ideas
           </CardDescription>
-          
+
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {success && <SuccessMessage>{success}</SuccessMessage>}
+
           <UploadArea>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -252,26 +406,28 @@ const GenerateIdea: React.FC = () => {
 
           <FormGroup>
             <Label>What material do you want to upcycle?</Label>
-            <Input type="text" placeholder="Type an idea" />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>What material do you want to upcycle?</Label>
-            <Input type="text" placeholder="plastic bottle" defaultValue="plastic bottle" />
+            <Input
+              type="text"
+              placeholder="e.g., plastic bottle, old jeans, cardboard"
+              value={material}
+              onChange={(e) => setMaterial(e.target.value)}
+            />
           </FormGroup>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.lg }}>
             <FormGroup style={{ marginBottom: 0 }}>
               <Label>Category</Label>
-              <Select>
-                <option>Education</option>
-                <option>Art</option>
-                <option>Home</option>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </Select>
             </FormGroup>
             <FormGroup style={{ marginBottom: 0 }}>
               <Label>Complexity</Label>
-              <Select>
+              <Select value={complexity} onChange={(e) => setComplexity(e.target.value)}>
                 <option>Low</option>
                 <option>Medium</option>
                 <option>High</option>
@@ -281,62 +437,114 @@ const GenerateIdea: React.FC = () => {
 
           <FormGroup>
             <Label>Max Budget (₹)</Label>
-            <Input type="number" placeholder="100" defaultValue="100" />
+            <Input
+              type="number"
+              placeholder="100"
+              value={budget}
+              onChange={(e) => setBudget(parseInt(e.target.value) || 0)}
+              min="0"
+            />
           </FormGroup>
 
-          <Button onClick={() => navigate('/step-guide')}>
-            Generate
+          <Button onClick={handleGenerate} disabled={loading}>
+            {loading ? (
+              <>
+                <LoadingSpinner style={{ marginRight: spacing.sm }} /> Generating...
+              </>
+            ) : (
+              'Generate with AI'
+            )}
           </Button>
         </Card>
 
         <Card>
           <Badge>💡 Generated Idea</Badge>
-          
-          <OutputImage>
-            🎨
-          </OutputImage>
 
-          <IdeaTitle>Desk Organizer from Plastic Bottle</IdeaTitle>
+          {generatedIdea ? (
+            <>
+              <OutputImage>
+                {category === 'Tech' || category === 'Robotics' ? '🤖' : 
+                 category === 'Art' ? '🎨' :
+                 category === 'Fashion' ? '👗' :
+                 category === 'Gaming' ? '🎮' :
+                 category === 'Sports' ? '⚽' :
+                 category === 'Garden' ? '🌱' :
+                 category === 'Kitchen' ? '🍳' :
+                 category === 'Furniture' ? '🛋️' :
+                 category === 'Jewelry' ? '💎' :
+                 category === 'Toys' ? '🧸' :
+                 category === 'Music' ? '🎵' :
+                 category === 'Storage' ? '📦' : '🎨'}
+              </OutputImage>
 
-          <DetailGrid>
-            <DetailItem>
-              <DetailLabel>⏱️ Estimated Time</DetailLabel>
-              <DetailValue>90-120 min</DetailValue>
-            </DetailItem>
-            <DetailItem>
-              <DetailLabel>💰 Budget</DetailLabel>
-              <DetailValue>₹100</DetailValue>
-            </DetailItem>
-            <DetailItem>
-              <DetailLabel>📊 Complexity</DetailLabel>
-              <DetailValue>Low</DetailValue>
-            </DetailItem>
-            <DetailItem>
-              <DetailLabel>🏷️ Category</DetailLabel>
-              <DetailValue>Education</DetailValue>
-            </DetailItem>
-          </DetailGrid>
+              <IdeaTitle>{generatedIdea.idea}</IdeaTitle>
 
-          <DescriptionBox>
-            <DescriptionLabel>📝 Project Description</DescriptionLabel>
-            <DescriptionText>
-              Transform a plastic bottle into a functional desk organizer. This eco-friendly project teaches upcycling principles while creating a practical storage solution for your workspace. Perfect for beginners!
-            </DescriptionText>
-          </DescriptionBox>
+              <DetailGrid>
+                <DetailItem>
+                  <DetailLabel>⏱️ Estimated Time</DetailLabel>
+                  <DetailValue>{generatedIdea.estimatedTime}</DetailValue>
+                </DetailItem>
+                <DetailItem>
+                  <DetailLabel>💰 Budget</DetailLabel>
+                  <DetailValue>₹{budget}</DetailValue>
+                </DetailItem>
+                <DetailItem>
+                  <DetailLabel>📊 Complexity</DetailLabel>
+                  <DetailValue>{complexity}</DetailValue>
+                </DetailItem>
+                <DetailItem>
+                  <DetailLabel>🏷️ Category</DetailLabel>
+                  <DetailValue>{category}</DetailValue>
+                </DetailItem>
+              </DetailGrid>
 
-          <DescriptionBox>
-            <DescriptionLabel>🎯 Learning Outcomes</DescriptionLabel>
-            <DescriptionText>
-              • Understand upcycling and waste reduction
-              • Develop creative problem-solving skills
-              • Learn material transformation techniques
-              • Create sustainable products
-            </DescriptionText>
-          </DescriptionBox>
+              <DescriptionBox>
+                <DescriptionLabel>📝 Project Description</DescriptionLabel>
+                <DescriptionText>{generatedIdea.description}</DescriptionText>
+              </DescriptionBox>
 
-          <ActionButton onClick={() => navigate('/step-guide')}>
-            Start Project →
-          </ActionButton>
+              {generatedIdea.learningOutcomes && generatedIdea.learningOutcomes.length > 0 && (
+                <DescriptionBox>
+                  <DescriptionLabel>🎯 Learning Outcomes</DescriptionLabel>
+                  <DescriptionText>
+                    {generatedIdea.learningOutcomes.map((outcome: string, idx: number) => (
+                      <div key={idx}>• {outcome}</div>
+                    ))}
+                  </DescriptionText>
+                </DescriptionBox>
+              )}
+
+              {relatedResources.length > 0 && (
+                <DescriptionBox>
+                  <DescriptionLabel>📚 Related Resources</DescriptionLabel>
+                  <DescriptionText>
+                    {relatedResources.slice(0, 3).map((resource: any, idx: number) => (
+                      <div key={idx} style={{ marginBottom: spacing.sm }}>
+                        <strong>{resource.title}</strong> ({resource.type})
+                        {resource.url && (
+                          <ResourceLink href={resource.url} target="_blank" rel="noopener noreferrer">
+                            View →
+                          </ResourceLink>
+                        )}
+                      </div>
+                    ))}
+                  </DescriptionText>
+                </DescriptionBox>
+              )}
+
+              <ActionButton onClick={() => navigate('/step-guide')}>
+                Start Project →
+              </ActionButton>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: spacing.lg, color: '#6B7280' }}>
+              <p style={{ fontSize: '3rem', marginBottom: spacing.md }}>✨</p>
+              <p>Generate an idea to see details here</p>
+              <p style={{ fontSize: '0.875rem', marginTop: spacing.md }}>
+                Fill in the form on the left and click "Generate with AI"
+              </p>
+            </div>
+          )}
         </Card>
       </Grid>
     </Container>

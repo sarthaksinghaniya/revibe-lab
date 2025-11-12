@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 const Container = styled.header`
   display: flex;
   flex-direction: column;
-  background: #FFC1CC;
+  background: #E1DBD1;
   border-bottom: 1px solid ${({ theme }) => theme.gray200};
   padding: ${spacing.md} ${spacing.lg};
 `;

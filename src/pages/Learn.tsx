@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { spacing, radius } from '@/theme/tokens';
+import { resourcesDB, initializeDatabase } from '@/services/databaseService';
+import { reinforcementLearning } from '@/services/reinforcementLearning';
 
 const Container = styled.div`
   max-width: 1000px;
@@ -154,23 +156,297 @@ const PhaseContent = styled.div`
   line-height: 1.6;
 `;
 
+const ResourceGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: ${spacing.md};
+  margin-bottom: ${spacing.lg};
+`;
+
+const ResourceCard = styled.div`
+  background: ${({ theme }) => theme.gray100};
+  border: 1px solid ${({ theme }) => theme.gray200};
+  border-radius: ${radius.md};
+  padding: ${spacing.md};
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.primaryPurple};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ResourceType = styled.span`
+  display: inline-block;
+  background: ${({ theme }) => theme.primaryPurple};
+  color: ${({ theme }) => theme.white};
+  padding: ${spacing.xs} ${spacing.sm};
+  border-radius: ${radius.full};
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: ${spacing.sm};
+  text-transform: uppercase;
+`;
+
+const ResourceTitle = styled.h3`
+  color: ${({ theme }) => theme.gray900};
+  margin: 0 0 ${spacing.sm} 0;
+  font-size: 1rem;
+`;
+
+const ResourceDescription = styled.p`
+  color: ${({ theme }) => theme.gray600};
+  margin: 0 0 ${spacing.md} 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+`;
+
+const LearningPathContainer = styled.div`
+  background: ${({ theme }) => theme.gray100};
+  border-radius: ${radius.lg};
+  padding: ${spacing.lg};
+  margin-bottom: ${spacing.lg};
+`;
+
+const PathStep = styled.div`
+  display: flex;
+  gap: ${spacing.md};
+  margin-bottom: ${spacing.md};
+  padding-bottom: ${spacing.md};
+  border-bottom: 1px solid ${({ theme }) => theme.gray300};
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+`;
+
+const StepNumber = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.primaryPurple};
+  color: ${({ theme }) => theme.white};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+`;
+
+const StepContent = styled.div`
+  flex: 1;
+`;
+
+const StepTitle = styled.h4`
+  color: ${({ theme }) => theme.gray900};
+  margin: 0 0 ${spacing.xs} 0;
+  font-size: 1rem;
+`;
+
+const StepDescription = styled.p`
+  color: ${({ theme }) => theme.gray600};
+  margin: 0;
+  font-size: 0.875rem;
+`;
+
+const ActionButton = styled.a`
+  display: inline-block;
+  padding: ${spacing.xs} ${spacing.md};
+  background: ${({ theme }) => theme.primaryPurple};
+  color: ${({ theme }) => theme.white};
+  border: none;
+  border-radius: ${radius.md};
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: ${spacing.sm};
+  margin-right: ${spacing.sm};
+  transition: all 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+  }
+`;
+
+const SecondaryButton = styled.a`
+  display: inline-block;
+  padding: ${spacing.xs} ${spacing.md};
+  background: ${({ theme }) => theme.gray200};
+  color: ${({ theme }) => theme.gray900};
+  border: none;
+  border-radius: ${radius.md};
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: ${spacing.sm};
+  margin-right: ${spacing.sm};
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${({ theme }) => theme.gray300};
+    transform: translateY(-2px);
+  }
+`;
+
 const Learn: React.FC = () => {
+  const [resources, setResources] = useState<any[]>([]);
+  const [learningPath, setLearningPath] = useState<any[]>([]);
+  const [progress, setProgress] = useState<any>(null);
+
+  useEffect(() => {
+    // Initialize database
+    initializeDatabase();
+
+    // Load all resources (including AI-generated ones)
+    const allResources = resourcesDB.getAll();
+    
+    // Sort resources: AI-generated (with topic containing "-") first, then default resources
+    const sortedResources = allResources.sort((a: any, b: any) => {
+      const aIsGenerated = a.topic.includes(' - ');
+      const bIsGenerated = b.topic.includes(' - ');
+      if (aIsGenerated && !bIsGenerated) return -1;
+      if (!aIsGenerated && bIsGenerated) return 1;
+      return 0;
+    });
+
+    setResources(sortedResources);
+
+    // Get personalized learning path
+    const path = reinforcementLearning.getPersonalizedLearningPath();
+    setLearningPath(path);
+
+    // Get learning progress
+    const prog = reinforcementLearning.calculateLearningProgress();
+    setProgress(prog);
+  }, []);
+
   return (
     <Container>
       <Card>
         <Header>
           <Icon>📚</Icon>
           <div>
-            <Title>Higher Education Learning Module</Title>
-            <Subtitle>Institution Level: College/University</Subtitle>
+            <Title>Learning Hub</Title>
+            <Subtitle>Personalized Learning Resources & Path</Subtitle>
           </div>
         </Header>
 
+        {progress && (
+          <Section>
+            <SectionTitle>📊 Your Learning Progress</SectionTitle>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
+              <div style={{ background: '#F3F4F6', padding: spacing.md, borderRadius: radius.md }}>
+                <p style={{ color: '#6B7280', margin: '0 0 8px 0', fontSize: '0.875rem', fontWeight: 600 }}>Skill Level</p>
+                <p style={{ color: '#111827', margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{progress.skillLevel}</p>
+              </div>
+              <div style={{ background: '#F3F4F6', padding: spacing.md, borderRadius: radius.md }}>
+                <p style={{ color: '#6B7280', margin: '0 0 8px 0', fontSize: '0.875rem', fontWeight: 600 }}>Projects Completed</p>
+                <p style={{ color: '#111827', margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{progress.completedProjects} / {progress.totalProjects}</p>
+              </div>
+              <div style={{ background: '#F3F4F6', padding: spacing.md, borderRadius: radius.md }}>
+                <p style={{ color: '#6B7280', margin: '0 0 8px 0', fontSize: '0.875rem', fontWeight: 600 }}>Learning Gain</p>
+                <p style={{ color: '#111827', margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{progress.averageLearningGain.toFixed(1)} / 5</p>
+              </div>
+              <div style={{ background: '#F3F4F6', padding: spacing.md, borderRadius: radius.md }}>
+                <p style={{ color: '#6B7280', margin: '0 0 8px 0', fontSize: '0.875rem', fontWeight: 600 }}>Trend</p>
+                <p style={{ color: '#111827', margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{progress.progressTrend === 'improving' ? '📈' : progress.progressTrend === 'declining' ? '📉' : '➡️'} {progress.progressTrend}</p>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {learningPath.length > 0 && (
+          <Section>
+            <SectionTitle>🎯 Your Personalized Learning Path</SectionTitle>
+            <LearningPathContainer>
+              {learningPath.map((step, index) => (
+                <PathStep key={index}>
+                  <StepNumber>{index + 1}</StepNumber>
+                  <StepContent>
+                    <StepTitle>{step.phase}</StepTitle>
+                    <StepDescription>{step.description}</StepDescription>
+                    <p style={{ color: '#6B7280', fontSize: '0.75rem', margin: '8px 0 0 0' }}>
+                      Complexity: {step.recommendedComplexity} • Duration: {step.estimatedDuration}
+                    </p>
+                  </StepContent>
+                </PathStep>
+              ))}
+            </LearningPathContainer>
+          </Section>
+        )}
+
         <Section>
-          <SectionTitle>📌 Upcycling plastic bottle: Advanced Reuse Project</SectionTitle>
-          <Subtitle style={{ marginBottom: spacing.md }}>
-            ⏱️ 90-120 minutes 🏫 College/University 🌱 Environmental Studies • Design • Engineering • Business
-          </Subtitle>
+          <SectionTitle>📚 Learning Resources</SectionTitle>
+          {resources.length > 0 ? (
+            <>
+              {/* AI-Generated Resources Section */}
+              {resources.some((r: any) => r.topic.includes(' - ')) && (
+                <div style={{ marginBottom: spacing.lg }}>
+                  <h3 style={{ color: '#6366F1', marginBottom: spacing.md, fontSize: '1rem', fontWeight: 600 }}>
+                    🤖 AI-Recommended for Your Projects
+                  </h3>
+                  <ResourceGrid>
+                    {resources
+                      .filter((r: any) => r.topic.includes(' - '))
+                      .map((resource) => (
+                        <ResourceCard key={resource.id}>
+                          <ResourceType>{resource.type}</ResourceType>
+                          <ResourceTitle>{resource.title}</ResourceTitle>
+                          <ResourceDescription>{resource.description}</ResourceDescription>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
+                            <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                              📌 {resource.topic} • {resource.difficulty}
+                            </span>
+                            {resource.url && (
+                              <a href={resource.url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', fontSize: '0.875rem', fontWeight: 600 }}>
+                                Visit →
+                              </a>
+                            )}
+                          </div>
+                        </ResourceCard>
+                      ))}
+                  </ResourceGrid>
+                </div>
+              )}
+
+              {/* General Resources Section */}
+              {resources.some((r: any) => !r.topic.includes(' - ')) && (
+                <div>
+                  <h3 style={{ color: '#6B7280', marginBottom: spacing.md, fontSize: '1rem', fontWeight: 600 }}>
+                    📖 General Learning Resources
+                  </h3>
+                  <ResourceGrid>
+                    {resources
+                      .filter((r: any) => !r.topic.includes(' - '))
+                      .map((resource) => (
+                        <ResourceCard key={resource.id}>
+                          <ResourceType>{resource.type}</ResourceType>
+                          <ResourceTitle>{resource.title}</ResourceTitle>
+                          <ResourceDescription>{resource.description}</ResourceDescription>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
+                            <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                              📌 {resource.topic} • {resource.difficulty}
+                            </span>
+                            {resource.url && (
+                              <a href={resource.url} target="_blank" rel="noopener noreferrer" style={{ color: '#6366F1', fontSize: '0.875rem', fontWeight: 600 }}>
+                                Visit →
+                              </a>
+                            )}
+                          </div>
+                        </ResourceCard>
+                      ))}
+                  </ResourceGrid>
+                </div>
+              )}
+            </>
+          ) : (
+            <p style={{ color: '#6B7280' }}>Loading resources...</p>
+          )}
         </Section>
 
         <Section>
@@ -222,12 +498,14 @@ const Learn: React.FC = () => {
             </PhaseHeader>
             <PhaseContent>
               Conduct a detailed analysis of material properties and potential applications
-              <button style={{ marginLeft: spacing.md, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                View Resources
-              </button>
-              <button style={{ marginLeft: spacing.sm, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                Add Notes
-              </button>
+              <div style={{ marginTop: spacing.sm }}>
+                <ActionButton href="https://www.amazon.com/s?k=material+properties+guide" target="_blank" rel="noopener noreferrer">
+                  📚 View Resources
+                </ActionButton>
+                <SecondaryButton href="#notes" onClick={(e) => { e.preventDefault(); alert('Notes feature coming soon!'); }}>
+                  📝 Add Notes
+                </SecondaryButton>
+              </div>
             </PhaseContent>
           </PhaseContainer>
 
@@ -241,12 +519,14 @@ const Learn: React.FC = () => {
             </PhaseHeader>
             <PhaseContent>
               Develop detailed design specifications and project plans
-              <button style={{ marginLeft: spacing.md, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                View Resources
-              </button>
-              <button style={{ marginLeft: spacing.sm, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                Add Notes
-              </button>
+              <div style={{ marginTop: spacing.sm }}>
+                <ActionButton href="https://www.skillshare.com/search?query=design+planning" target="_blank" rel="noopener noreferrer">
+                  📚 View Resources
+                </ActionButton>
+                <SecondaryButton href="#notes" onClick={(e) => { e.preventDefault(); alert('Notes feature coming soon!'); }}>
+                  📝 Add Notes
+                </SecondaryButton>
+              </div>
             </PhaseContent>
           </PhaseContainer>
 
@@ -260,12 +540,14 @@ const Learn: React.FC = () => {
             </PhaseHeader>
             <PhaseContent>
               Research similar products and market potential
-              <button style={{ marginLeft: spacing.md, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                View Resources
-              </button>
-              <button style={{ marginLeft: spacing.sm, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                Add Notes
-              </button>
+              <div style={{ marginTop: spacing.sm }}>
+                <ActionButton href="https://www.coursera.org/search?query=market+research" target="_blank" rel="noopener noreferrer">
+                  📚 View Resources
+                </ActionButton>
+                <SecondaryButton href="#notes" onClick={(e) => { e.preventDefault(); alert('Notes feature coming soon!'); }}>
+                  📝 Add Notes
+                </SecondaryButton>
+              </div>
             </PhaseContent>
           </PhaseContainer>
 
@@ -279,12 +561,14 @@ const Learn: React.FC = () => {
             </PhaseHeader>
             <PhaseContent>
               Build and test prototypes of the upcycled product
-              <button style={{ marginLeft: spacing.md, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                View Resources
-              </button>
-              <button style={{ marginLeft: spacing.sm, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                Add Notes
-              </button>
+              <div style={{ marginTop: spacing.sm }}>
+                <ActionButton href="https://www.instructables.com" target="_blank" rel="noopener noreferrer">
+                  📚 View Resources
+                </ActionButton>
+                <SecondaryButton href="#notes" onClick={(e) => { e.preventDefault(); alert('Notes feature coming soon!'); }}>
+                  📝 Add Notes
+                </SecondaryButton>
+              </div>
             </PhaseContent>
           </PhaseContainer>
 
@@ -298,12 +582,14 @@ const Learn: React.FC = () => {
             </PhaseHeader>
             <PhaseContent>
               Present findings, evaluate outcomes, and discuss improvements
-              <button style={{ marginLeft: spacing.md, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                View Resources
-              </button>
-              <button style={{ marginLeft: spacing.sm, padding: `${spacing.xs} ${spacing.md}`, background: '#E5E7EB', border: 'none', borderRadius: radius.md, cursor: 'pointer', marginTop: spacing.sm }}>
-                Add Notes
-              </button>
+              <div style={{ marginTop: spacing.sm }}>
+                <ActionButton href="https://www.ted.com/search?q=innovation" target="_blank" rel="noopener noreferrer">
+                  📚 View Resources
+                </ActionButton>
+                <SecondaryButton href="#notes" onClick={(e) => { e.preventDefault(); alert('Notes feature coming soon!'); }}>
+                  📝 Add Notes
+                </SecondaryButton>
+              </div>
             </PhaseContent>
           </PhaseContainer>
         </Section>
