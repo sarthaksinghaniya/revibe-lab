@@ -1,0 +1,28 @@
+{
+  "name": "revibe-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.1",
+    "styled-components": "^5.3.11",
+    "axios": "^1.6.1",
+    "realm-web": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.26",
+    "@types/react-dom": "^18.2.10",
+    "@types/styled-components": "^5.1.26",
+    "@types/react-router-dom": "^5.3.3",
+    "@types/node": "^20.8.10",
+    "typescript": "^5.3.2",
+    "vite": "^5.0.3",
+    "@vitejs/plugin-react": "^4.2.0"
+  }
+}
