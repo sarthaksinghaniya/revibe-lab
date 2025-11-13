@@ -286,6 +286,8 @@ const GenerateIdea: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [generatedIdea, setGeneratedIdea] = useState<any>(null);
   const [relatedResources, setRelatedResources] = useState<any[]>([]);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const CATEGORIES = [
     'Education',
@@ -304,6 +306,61 @@ const GenerateIdea: React.FC = () => {
     'Music',
     'Storage',
   ];
+
+  const handleFileUpload = (file: File) => {
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a JPG, PNG, or WebP image');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    // Read and display image
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageData = e.target?.result as string;
+      setUploadedImage(imageData);
+      setSuccess('✅ Image uploaded successfully! You can now generate ideas.');
+      setError('');
+    };
+    reader.onerror = () => {
+      setError('Failed to read file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadAreaClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!material.trim()) {
@@ -390,7 +447,29 @@ const GenerateIdea: React.FC = () => {
           {error && <ErrorMessage>{error}</ErrorMessage>}
           {success && <SuccessMessage>{success}</SuccessMessage>}
 
-          <UploadArea>
+          {uploadedImage && (
+            <div style={{ marginBottom: spacing.lg, borderRadius: '8px', overflow: 'hidden' }}>
+              <img 
+                src={uploadedImage} 
+                alt="Uploaded material" 
+                style={{ width: '100%', height: 'auto', maxHeight: '200px', objectFit: 'cover' }}
+              />
+            </div>
+          )}
+
+          <UploadArea
+            onClick={handleUploadAreaClick}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            style={{ cursor: 'pointer' }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileInputChange}
+              style={{ display: 'none' }}
+            />
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
